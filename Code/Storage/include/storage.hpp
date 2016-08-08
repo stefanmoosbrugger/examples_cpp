@@ -15,8 +15,8 @@ struct storage {
         delete [] m_gpu_ptr;
     }
 
-    void clone_to_device() const { m_on_host = false; }
-    void clone_from_device() const { m_on_host = true; }
+    void clone_to_device() { m_on_host = false; }
+    void clone_from_device() { m_on_host = true; }
     bool is_on_host() const { return m_on_host; }
 
     T* get_cpu_ptr() const { return m_cpu_ptr; }
@@ -25,8 +25,9 @@ struct storage {
     bool m_on_host;
     T* m_cpu_ptr;
     T* m_gpu_ptr;
-    
+
 private:
     storage(storage const&);
     storage& operator=(storage const&);
 };
+

@@ -39,20 +39,17 @@ namespace {
     };
 
     /* Helper struct that is needed to iterate over an std tuple of arrays in order to initialize a stack array. */
-    template<typename Lambda, typename DataHandler, unsigned Offset = 0, std::size_t I = 0, typename... Tp>
+    template<typename Lambda, std::size_t I = 0, typename... Tp>
     inline typename std::enable_if<I == sizeof...(Tp), void>::type
-    fill_view(std::tuple<Tp...> const& t, DataHandler& h, Lambda const& l) { }
+    execute_lambda_on_tuple(std::tuple<Tp...> const& t, Lambda const& l) { }
 
-    template<typename Lambda, typename DataHandler, unsigned Offset = 0, std::size_t I = 0, typename... Tp>
+    template<typename Lambda, std::size_t I = 0, typename... Tp>
     inline typename std::enable_if<I < sizeof...(Tp), void>::type
-    fill_view(std::tuple<Tp...> const& t, DataHandler& h, Lambda const& l) {
-        typedef typename std::remove_cv<typename std::remove_reference<decltype(std::get<I>(t))>::type >::type ty;
-        const unsigned size = std::tuple_size<ty>::value;
-        for(unsigned i=0; i<std::get<I>(t).size(); ++i) {
-            h.s[i+Offset] = l(std::get<I>(t)[i]);
-        }
-        fill_view<Lambda, DataHandler, (Offset+std::tuple_size<ty>::value), I+1, Tp...>(t, h, l);
-    }    
+    execute_lambda_on_tuple(std::tuple<Tp...> const& t, Lambda const& l) { 
+        l(std::get<I>(t));
+        execute_lambda_on_tuple<Lambda, I+1, Tp...>(t, l);
+    }
+        
 }
 
 
@@ -79,32 +76,84 @@ struct data_field_handler {
     // simple getter for a data field device view
     view_t<storage_device_view> device_view() const {
         view_t<storage_device_view> dv;
-        fill_view(f, dv, [](auto& view) { return view.device_view(); });
+        unsigned offset = 0;        
+        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
+            for(unsigned i=0; i<tuple_elem.size(); ++i) {
+                dv.s[i+offset] = tuple_elem[i].device_view();
+            }
+            offset += tuple_elem.size();
+        });
         return dv;
     }
 
     // simple getter for a data field host view
     view_t<storage_host_view> host_view() const {
         view_t<storage_host_view> hv;
-        fill_view(f, hv, [](auto& view) { return view.host_view(); });
+        unsigned offset = 0;
+        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
+            for(unsigned i=0; i<tuple_elem.size(); ++i) {
+                hv.s[i+offset] = tuple_elem[i].host_view();
+            }
+            offset += tuple_elem.size();
+        });
         return hv;
     }
+
+    // clone all storages in a data field to the device
+    void clone_to_device() const {
+        execute_lambda_on_tuple(f, [](auto& tuple_elem) {
+            for(unsigned i=0; i<tuple_elem.size(); ++i) {
+                tuple_elem[i].clone_to_device();
+            }
+        });
+    }
+
+    // clone all storages in a data field from the device
+    void clone_from_device() const {
+        execute_lambda_on_tuple(f, [](auto& tuple_elem) {
+            for(unsigned i=0; i<tuple_elem.size(); ++i) {
+                tuple_elem[i].clone_from_device();
+            }
+        });
+    }
+
+    // clone specific storage in a data field from the device
+    void clone_from_device(unsigned Dim, unsigned Snapshot) const {
+        unsigned cnt = Dim;
+        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
+            if(cnt-- == 0) tuple_elem[Snapshot].clone_from_device();
+        });
+    }
+
+    // clone specific storage in a data field from the device
+    void clone_to_device(unsigned Dim, unsigned Snapshot) const {
+        unsigned cnt = Dim;
+        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
+            if(cnt-- == 0) tuple_elem[Snapshot].clone_to_device();
+        });
+    }
+
 
 };
 
 
-        template <unsigned Dim_S, unsigned Snapshot_S>
-        struct swap {
-            template <unsigned Dim_T, unsigned Snapshot_T, typename T>
-            static void with(T& view) {
-                auto& src = view.template get<Dim_S,Snapshot_S>();
-                auto& trg = view.template get<Dim_T,Snapshot_T>();
-                auto* tmp_cpu = src.s->m_cpu_ptr;
-                auto* tmp_gpu = src.s->m_gpu_ptr;
-                src.s->m_cpu_ptr = trg.s->m_cpu_ptr;
-                src.s->m_gpu_ptr = trg.s->m_gpu_ptr;
-                trg.s->m_cpu_ptr = tmp_cpu;
-                trg.s->m_gpu_ptr = tmp_gpu;
-            }
-        };
+/** 
+ *  Implementation of a swap function. E.g., swap<0,0>::with<0,1>(field_view) will swap the CPU and GPU pointers of storages 0,0 and 0,1. 
+ *  This operation invalidates the previously created device_views. host_views are not affected and will directly see the swap.
+ **/
+template <unsigned Dim_S, unsigned Snapshot_S>
+struct swap {
+    template <unsigned Dim_T, unsigned Snapshot_T, typename T>
+    static void with(T& view) {
+        auto& src = view.template get<Dim_S,Snapshot_S>();
+        auto& trg = view.template get<Dim_T,Snapshot_T>();
+        auto* tmp_cpu = src.s->m_cpu_ptr;
+        auto* tmp_gpu = src.s->m_gpu_ptr;
+        src.s->m_cpu_ptr = trg.s->m_cpu_ptr;
+        src.s->m_gpu_ptr = trg.s->m_gpu_ptr;
+        trg.s->m_cpu_ptr = tmp_cpu;
+        trg.s->m_gpu_ptr = tmp_gpu;
+    }
+};
+
 

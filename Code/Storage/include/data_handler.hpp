@@ -45,5 +45,14 @@ struct data_handler {
         return { s.get()->m_gpu_ptr, m.get() };
     }
 
+    void clone_to_device() const {
+        s->clone_to_device();
+    }
+
+    void clone_from_device() const {
+        s->clone_from_device();
+    }
+
     constexpr data_handler(MetaData meta) : s(new storage<T>(27)), m(new MetaData(meta)) { }
 };
+
