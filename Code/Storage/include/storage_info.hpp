@@ -4,7 +4,7 @@
 
 //storage meta information
 template <int Size>
-struct storage_info{
+struct storage_info {
     storage_info() = delete;
 
     template <typename ... Ints>
@@ -16,10 +16,10 @@ struct storage_info{
 
     constexpr storage_info(storage_info const& other) = default;
 
-    static constexpr int size(){return Size;}
+    static constexpr int size() { return Size; }
 
     template<int Coord>
-    constexpr int dim() const {return m_dims[Coord];}
+    constexpr int dim() const { return m_dims[Coord]; }
 
     template<typename ... Ints>
     constexpr int index(Ints ... idx) const {
@@ -29,7 +29,7 @@ struct storage_info{
     template<typename T>
     int compute_index(T) const { assert(false); }
 
-        template<int First, int ... Indices, typename First_Int, typename ... Ints>
+    template<int First, int ... Indices, typename First_Int, typename ... Ints>
     constexpr int compute_index(std::integer_sequence< int,  First, Indices ... > , First_Int first_, Ints ... indices) const {
         return (sizeof...(Indices)>0)?
             first_ + m_dims[First] * compute_index(std::integer_sequence<int, Indices ...>(), indices ...)
