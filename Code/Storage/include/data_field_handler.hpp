@@ -55,48 +55,21 @@ namespace {
 
 template <typename T, typename MetaData, unsigned... N>
 struct data_field_handler {
-    // typedefs to both host and device view for the given T and MetaData
-    typedef typename data_handler<T, MetaData>::host_view_t storage_host_view;
-    typedef typename data_handler<T, MetaData>::device_view_t storage_device_view;
 
     // tuple of arrays (e.g., { {s00,s01,s02}, {s10, s11}, {s20} }, 3-dimensional field with snapshot sizes 3, 2, and 1. All in all we have 6 storages.)
     std::tuple< std::array<data_handler<T, MetaData >, N>... > f; 
     constexpr data_field_handler(MetaData m) : f(get_array_seq<N>::res::template get_data_handler_array<T,MetaData>(m)...) { }
 
-    template <typename S>
-    struct view_t {
-        S s[get_accumulated_data_field_index<sizeof...(N), N...>::value];
-        
-        template <unsigned Dim, unsigned Snapshot>
-        S& get() {
-            return s[get_accumulated_data_field_index<Dim, N...>::value + Snapshot];
-        }
-    };
 
-    // simple getter for a data field device view
-    view_t<storage_device_view> device_view() const {
-        view_t<storage_device_view> dv;
-        unsigned offset = 0;        
-        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
-            for(unsigned i=0; i<tuple_elem.size(); ++i) {
-                dv.s[i+offset] = tuple_elem[i].device_view();
-            }
-            offset += tuple_elem.size();
-        });
-        return dv;
-    }
+    template <unsigned Dim, unsigned Snapshot>
+    data_handler<T, MetaData>& get() {
+        return std::get<Dim>(f)[Snapshot];
+    } 
 
-    // simple getter for a data field host view
-    view_t<storage_host_view> host_view() const {
-        view_t<storage_host_view> hv;
-        unsigned offset = 0;
-        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
-            for(unsigned i=0; i<tuple_elem.size(); ++i) {
-                hv.s[i+offset] = tuple_elem[i].host_view();
-            }
-            offset += tuple_elem.size();
-        });
-        return hv;
+    template <unsigned Dim, unsigned Snapshot>
+    void set(data_handler<T, MetaData>& dh) {
+        if(!std::get<Dim>(f)[Snapshot].is_on_host()) std::cout << "WARNING: Data field element that is on device gets overridden.\n";
+        std::get<Dim>(f)[Snapshot] = dh;
     }
 
     // clone all storages in a data field to the device
@@ -134,6 +107,39 @@ struct data_field_handler {
     }
 
 
+    /*****************************DEVICE SUPPORT***************************************/
+    // device view support (contains all methods that can be called on the device side)
+    struct device_view {
+        typedef typename data_handler<T, MetaData>::device_view storage_device_view;
+        storage_device_view s[get_accumulated_data_field_index<sizeof...(N), N...>::value];
+        
+        // device compatible method that returns a data_handler device_view 
+        template <unsigned Dim, unsigned Snapshot>
+        storage_device_view& get() {
+            return s[get_accumulated_data_field_index<Dim, N...>::value + Snapshot];
+        }
+
+        // device compatible method that returns an element of a data field 
+        template <unsigned Dim, unsigned Snapshot, typename... Coords>
+        T& get_value(Coords... c) {
+            return s[get_accumulated_data_field_index<Dim, N...>::value + Snapshot](c...);
+        }
+    };
+
+    // simple getter for a data_field device view
+    device_view get_device_view() const {
+        device_view dv;
+        unsigned offset = 0;        
+        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
+            for(unsigned i=0; i<tuple_elem.size(); ++i) {
+                dv.s[i+offset] = tuple_elem[i].get_device_view();
+            }
+            offset += tuple_elem.size();
+        });
+        return dv;
+    }
+    /*********************************************************************************/
+
 };
 
 
@@ -143,10 +149,11 @@ struct data_field_handler {
  **/
 template <unsigned Dim_S, unsigned Snapshot_S>
 struct swap {
-    template <unsigned Dim_T, unsigned Snapshot_T, typename T>
-    static void with(T& view) {
-        auto& src = view.template get<Dim_S,Snapshot_S>();
-        auto& trg = view.template get<Dim_T,Snapshot_T>();
+    template <unsigned Dim_T, unsigned Snapshot_T, typename T, typename MetaData, unsigned... N>
+    static void with(data_field_handler<T, MetaData, N...>& data_field) {
+        auto& src = data_field.template get<Dim_S,Snapshot_S>();
+        auto& trg = data_field.template get<Dim_T,Snapshot_T>();
+        assert(src.is_on_host() && trg.is_on_host() && "Either target or source element is not on the device.");
         auto* tmp_cpu = src.s->m_cpu_ptr;
         auto* tmp_gpu = src.s->m_gpu_ptr;
         src.s->m_cpu_ptr = trg.s->m_cpu_ptr;
