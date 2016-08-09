@@ -17,7 +17,11 @@ struct storage_info_sol{
 
     constexpr storage_info_sol(storage_info_sol const& other) = default;
 
-    static constexpr int size(){return Layout::length;}
+    unsigned size() const { 
+        unsigned acc = 1;
+        for(auto const& e : m_dims) acc *= e;
+        return acc;
+    }
 
     template<int Coord>
     constexpr int dim() const {return m_dims[Coord];}

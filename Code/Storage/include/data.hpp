@@ -8,7 +8,8 @@
 
 template <typename T, typename MetaData>
 struct data {
-    constexpr data(MetaData meta) : s(new storage<T>(27)), m(new MetaData(meta)) { }
+    constexpr data(MetaData meta) : s(new storage<T>(meta.size())), m(new MetaData(meta)) { }
+
     std::shared_ptr<storage<T> > s;
     std::shared_ptr<MetaData> m;
 
