@@ -7,8 +7,8 @@
 #include "storage_info.hpp"
 
 template <typename T, typename MetaData>
-struct data_handler {
-    constexpr data_handler(MetaData meta) : s(new storage<T>(27)), m(new MetaData(meta)) { }
+struct data {
+    constexpr data(MetaData meta) : s(new storage<T>(27)), m(new MetaData(meta)) { }
     std::shared_ptr<storage<T> > s;
     std::shared_ptr<MetaData> m;
 

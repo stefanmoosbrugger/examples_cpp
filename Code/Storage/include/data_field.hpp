@@ -4,7 +4,7 @@
 #include <tuple>
 #include <iostream>
 
-#include "data_handler.hpp"
+#include "data.hpp"
 
 namespace {
     /* Helper struct for initializing an std tuple of arrays */    
@@ -17,13 +17,13 @@ namespace {
     struct get_array_seq<0,Seq...> {
         typedef get_array_seq<0,Seq...> res;
         template <typename T, typename MetaData, typename N>
-        static constexpr data_handler<T, MetaData> get_data_handler(MetaData m) {
-            return data_handler<T,MetaData>(m);
+        static constexpr data<T, MetaData> get_data(MetaData m) {
+            return data<T,MetaData>(m);
         }
 
         template <typename T, typename MetaData>
-        static constexpr std::array< data_handler<T,MetaData>, sizeof...(Seq) > get_data_handler_array(MetaData m) {
-            return { get_data_handler<T, MetaData, Seq>(m)... };
+        static constexpr std::array< data<T,MetaData>, sizeof...(Seq) > get_data_array(MetaData m) {
+            return { get_data<T, MetaData, Seq>(m)... };
         }
     };
 
@@ -54,20 +54,20 @@ namespace {
 
 
 template <typename T, typename MetaData, unsigned... N>
-struct data_field_handler {
+struct data_field {
 
-    // tuple of arrays (e.g., { {s00,s01,s02}, {s10, s11}, {s20} }, 3-dimensional field with snapshot sizes 3, 2, and 1. All in all we have 6 storages.)
-    std::tuple< std::array<data_handler<T, MetaData >, N>... > f; 
-    constexpr data_field_handler(MetaData m) : f(get_array_seq<N>::res::template get_data_handler_array<T,MetaData>(m)...) { }
+    // tuple of arrays (e.g., { {s00,s01,s02}, {s10, s11}, {s20} }, 3-dimensional field with snapshot sizes 3, 2, and 1. All together we have 6 storages.)
+    std::tuple< std::array<data<T, MetaData >, N>... > f; 
+    constexpr data_field(MetaData m) : f(get_array_seq<N>::res::template get_data_array<T,MetaData>(m)...) { }
 
 
     template <unsigned Dim, unsigned Snapshot>
-    data_handler<T, MetaData>& get() {
+    data<T, MetaData>& get() {
         return std::get<Dim>(f)[Snapshot];
     } 
 
     template <unsigned Dim, unsigned Snapshot>
-    void set(data_handler<T, MetaData>& dh) {
+    void set(data<T, MetaData>& dh) {
         if(!std::get<Dim>(f)[Snapshot].is_on_host()) std::cout << "WARNING: Data field element that is on device gets overridden.\n";
         std::get<Dim>(f)[Snapshot] = dh;
     }
@@ -110,10 +110,10 @@ struct data_field_handler {
     /*****************************DEVICE SUPPORT***************************************/
     // device view support (contains all methods that can be called on the device side)
     struct device_view {
-        typedef typename data_handler<T, MetaData>::device_view storage_device_view;
+        typedef typename data<T, MetaData>::device_view storage_device_view;
         storage_device_view s[get_accumulated_data_field_index<sizeof...(N), N...>::value];
         
-        // device compatible method that returns a data_handler device_view 
+        // device compatible method that returns a data device_view 
         template <unsigned Dim, unsigned Snapshot>
         storage_device_view& get() {
             return s[get_accumulated_data_field_index<Dim, N...>::value + Snapshot];
@@ -150,7 +150,7 @@ struct data_field_handler {
 template <unsigned Dim_S, unsigned Snapshot_S>
 struct swap {
     template <unsigned Dim_T, unsigned Snapshot_T, typename T, typename MetaData, unsigned... N>
-    static void with(data_field_handler<T, MetaData, N...>& data_field) {
+    static void with(data_field<T, MetaData, N...>& data_field) {
         auto& src = data_field.template get<Dim_S,Snapshot_S>();
         auto& trg = data_field.template get<Dim_T,Snapshot_T>();
         assert(src.is_on_host() && trg.is_on_host() && "Either target or source element is not on the device.");
@@ -162,5 +162,4 @@ struct swap {
         trg.s->m_gpu_ptr = tmp_gpu;
     }
 };
-
 
