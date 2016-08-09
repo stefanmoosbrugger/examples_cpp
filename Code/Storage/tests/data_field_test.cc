@@ -40,17 +40,17 @@ TEST(DataFieldTest, DeviceCloning) {
     field.clone_to_device(0,0);
     // create another view and check if on_host flag is equivalent
     data<double, storage_info_t> partial_view_1 = std::get<0>(field.f)[0];
-    EXPECT_EQ((field.get<0,0>().s->is_on_host()), (partial_view_1.s->is_on_host()));
-    EXPECT_NE((field.get<0,1>().s->is_on_host()), (partial_view_1.s->is_on_host()));
+    EXPECT_EQ((field.get<0,0>().is_on_host()), (partial_view_1.is_on_host()));
+    EXPECT_NE((field.get<0,1>().is_on_host()), (partial_view_1.is_on_host()));
     field.clone_to_device(0,1);
-    EXPECT_EQ((field.get<0,1>().s->is_on_host()), (partial_view_1.s->is_on_host()));
+    EXPECT_EQ((field.get<0,1>().is_on_host()), (partial_view_1.is_on_host()));
 
     // clone all storages in the field back to the host
     field.clone_from_device();
-    EXPECT_EQ(true, (partial_view_1.s->is_on_host()));
-    EXPECT_EQ(true, (field.get<0,0>().s->is_on_host()));
-    EXPECT_EQ(true, (field.get<0,1>().s->is_on_host()));
-    EXPECT_EQ((field.get<0,0>().s->is_on_host()), (partial_view_1.s->is_on_host()));
+    EXPECT_EQ(true, (partial_view_1.is_on_host()));
+    EXPECT_EQ(true, (field.get<0,0>().is_on_host()));
+    EXPECT_EQ(true, (field.get<0,1>().is_on_host()));
+    EXPECT_EQ((field.get<0,0>().is_on_host()), (partial_view_1.is_on_host()));
 }
 
 TEST(DataFieldTest, GetSetFieldElement) {
