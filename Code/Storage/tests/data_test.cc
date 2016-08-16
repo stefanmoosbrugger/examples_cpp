@@ -5,6 +5,7 @@
 #include "data.hpp"
 #include "storage.hpp"
 #include "storage_info_sol.hpp"
+#include "data_view.hpp"
 
 TEST(DataViewTest, Basic) {
     typedef storage_info_sol< layout_map<2,1,0> > storage_info_t;
@@ -33,16 +34,20 @@ TEST(DataViewTest, Basic) {
 
     //fill with data
     int z=0;
+    auto hv1 = make_host_view(my_storage_1);
+    auto hv2 = make_host_view(my_storage_2);
+    auto hv1_cpy = make_host_view(my_storage_1_cpy);
+    
     for(int i=0; i<3; ++i)
         for(int j=0; j<3; ++j)
             for(int k=0; k<3; ++k)
-                my_storage_1(i,j,k) = ++z;
+                hv1(i,j,k) = ++z;
 
     for(int i=0; i<3; ++i)
         for(int j=0; j<3; ++j)
             for(int k=0; k<3; ++k) {
-                std::cout << my_storage_1(i,j,k) << " == " << my_storage_1_cpy(i,j,k) << " != " << my_storage_2(i,j,k) << std::endl;
-                EXPECT_EQ(my_storage_1(i,j,k), my_storage_1_cpy(i,j,k));
-                EXPECT_NE(my_storage_2(i,j,k), my_storage_1_cpy(i,j,k));
+                std::cout << hv1(i,j,k) << " == " << hv1_cpy(i,j,k) << " != " << hv2(i,j,k) << std::endl;
+                EXPECT_EQ(hv1(i,j,k), hv1_cpy(i,j,k));
+                EXPECT_NE(hv2(i,j,k), hv1_cpy(i,j,k));
             }
 }

@@ -109,40 +109,6 @@ struct data_field {
         });
     }
 
-
-    /*****************************DEVICE SUPPORT***************************************/
-    // device view support (contains all methods that can be called on the device side)
-    struct device_view {
-        typedef typename data<T, MetaData>::device_view storage_device_view;
-        storage_device_view s[get_accumulated_data_field_index<sizeof...(N), N...>::value];
-        
-        // device compatible method that returns a data device_view 
-        template <unsigned Dim, unsigned Snapshot>
-        storage_device_view& get() {
-            return s[get_accumulated_data_field_index<Dim, N...>::value + Snapshot];
-        }
-
-        // device compatible method that returns an element of a data field 
-        template <unsigned Dim, unsigned Snapshot, typename... Coords>
-        T& get_value(Coords... c) {
-            return s[get_accumulated_data_field_index<Dim, N...>::value + Snapshot](c...);
-        }
-    };
-
-    // simple getter for a data_field device view
-    device_view get_device_view() const {
-        device_view dv;
-        unsigned offset = 0;        
-        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
-            for(unsigned i=0; i<tuple_elem.size(); ++i) {
-                dv.s[i+offset] = tuple_elem[i].get_device_view();
-            }
-            offset += tuple_elem.size();
-        });
-        return dv;
-    }
-    /*********************************************************************************/
-
 };
 
 

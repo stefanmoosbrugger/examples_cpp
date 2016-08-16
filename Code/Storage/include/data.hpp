@@ -28,28 +28,5 @@ struct data {
         return s->is_on_host();
     }
 
-    template <typename... N> 
-    T& operator()(N... n) {
-        return s->get_cpu_ptr()[m->index(n...)];
-    }
-
-    /*****************************DEVICE SUPPORT***************************************/
-    // This represents a device view to a storage.
-    // It contains a device pointer of the data,
-    // and provides means to modify the contained data
-    struct device_view {
-        T* s;
-        MetaData* m;
-        template <typename... N>
-        T& operator()(N... n) {
-            return s[m->index(n...)]; 
-        }
-    };
-
-    // simple getter for device_view
-    device_view get_device_view() const {
-        return { s->get_gpu_ptr(), m.get() };
-    }
-    /*********************************************************************************/
 };
 

@@ -36,9 +36,9 @@ data_field_view<typename T::meta_data_t, typename T::data_t, T::size, T::dims> m
     unsigned cnt = 0;
     execute_lambda_on_tuple(data.f, [&](auto& tuple_elem) {
         for(unsigned i=0; i<tuple_elem.size(); ++i) {
-            ptrs[offset+i] = e.s->get_gpu_ptr();
+            ptrs[offset+i] = tuple_elem[i].s->get_gpu_ptr();
         }
-        offsets[cnt] = offset;
+        offsets[cnt++] = offset;
         offset += tuple_elem.size();        
     });
     return data_field_view<typename T::meta_data_t, typename T::data_t, T::size, T::dims>(ptrs, std::get<0>(data.f)[0].m.get(), offsets);
@@ -52,9 +52,9 @@ data_field_view<typename T::meta_data_t, typename T::data_t, T::size, T::dims> m
     unsigned cnt = 0;
     execute_lambda_on_tuple(data.f, [&](auto& tuple_elem) {
         for(unsigned i=0; i<tuple_elem.size(); ++i) {
-            ptrs[offset+i] = e.s->get_cpu_ptr();
+            ptrs[offset+i] = tuple_elem[i].s->get_cpu_ptr();
         }
-        offsets[cnt] = offset;
+        offsets[cnt++] = offset;
         offset += tuple_elem.size();        
     });
     return data_field_view<typename T::meta_data_t, typename T::data_t, T::size, T::dims>(ptrs, std::get<0>(data.f)[0].m.get(), offsets);
