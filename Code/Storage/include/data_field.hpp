@@ -55,11 +55,14 @@ namespace {
 
 template <typename T, typename MetaData, unsigned... N>
 struct data_field {
+    using meta_data_t = MetaData;
+    using data_t = T;
 
     // tuple of arrays (e.g., { {s00,s01,s02}, {s10, s11}, {s20} }, 3-dimensional field with snapshot sizes 3, 2, and 1. All together we have 6 storages.)
-    std::tuple< std::array<data<T, MetaData >, N>... > f; 
+    std::tuple< std::array<data<T, MetaData >, N>... > f;
+    const static unsigned size = get_accumulated_data_field_index<sizeof...(N), N...>::value; 
+    const static unsigned dims = sizeof...(N); 
     constexpr data_field(MetaData m) : f(get_array_seq<N>::res::template get_data_array<T,MetaData>(m)...) { }
-
 
     template <unsigned Dim, unsigned Snapshot>
     data<T, MetaData>& get() {
