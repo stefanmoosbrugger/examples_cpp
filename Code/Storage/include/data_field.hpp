@@ -62,7 +62,8 @@ struct data_field {
 
     // tuple of arrays (e.g., { {s00,s01,s02}, {s10, s11}, {s20} }, 3-dimensional field with snapshot sizes 3, 2, and 1. All together we have 6 storages.)
     std::tuple< std::array<data<T, MetaData >, N>... > f;
-    constexpr data_field(MetaData m) : f(get_array_seq<N>::res::template get_data_array<T,MetaData>(m)...) { }
+    bool update_required;
+    constexpr data_field(MetaData m) : f(get_array_seq<N>::res::template get_data_array<T,MetaData>(m)...), update_required(false) { }
 
     template <unsigned Dim, unsigned Snapshot>
     data<T, MetaData>& get() {
@@ -71,8 +72,11 @@ struct data_field {
 
     template <unsigned Dim, unsigned Snapshot>
     void set(data<T, MetaData>& dh) {
-        if(!std::get<Dim>(f)[Snapshot].is_valid_on_host()) std::cout << "WARNING: Data field element that is on device gets overridden.\n";
+        assert((std::get<Dim>(f)[Snapshot].is_valid_on_host() && 
+               !std::get<Dim>(f)[Snapshot].is_valid_on_device()) && 
+               "WARNING: Data field element gets overridden.\n");
         std::get<Dim>(f)[Snapshot] = dh;
+        update_required = true;
     }
 
     // clone all storages in a data field to the device
@@ -147,8 +151,9 @@ struct data_field {
 
 
 /** 
- *  Implementation of a swap function. E.g., swap<0,0>::with<0,1>(field_view) will swap the CPU and GPU pointers of storages 0,0 and 0,1. 
- *  This operation invalidates the previously created device_views. host_views are not affected and will directly see the swap.
+ *  Implementation of a swap function. E.g., swap<0,0>::with<0,1>(field_view) 
+ *  will swap the CPU and GPU pointers of storages 0,0 and 0,1. 
+ *  This operation invalidates the previously created views.
  **/
 template <unsigned Dim_S, unsigned Snapshot_S>
 struct swap {
@@ -163,6 +168,7 @@ struct swap {
         src.s->m_gpu_ptr = trg.s->m_gpu_ptr;
         trg.s->m_cpu_ptr = tmp_cpu;
         trg.s->m_gpu_ptr = tmp_gpu;
+        data_field.update_required = true;
     }
 };
 
