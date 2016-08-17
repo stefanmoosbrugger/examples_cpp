@@ -17,26 +17,30 @@ struct storage {
     }
 
     void clone_to_device() { 
+        assert(m_valid_on_host && "Cannot clone a storage to the device that is in an invalid state.");
         if(!m_valid_on_device) {
             // perform a memcpy
         }
         m_valid_on_host = false;
         m_valid_on_device = true; 
     }
-    void clone_from_device() { 
+    void clone_from_device() {
+        assert(m_valid_on_device && "Cannot clone a storage from the device that is in an invalid state.");
         if(!m_valid_on_host) {
             // perform a memcpy
         }
         m_valid_on_host = true;
         m_valid_on_device = false; 
     }
-    void view_on_host() { 
+    void view_on_host() {
+        assert(m_valid_on_device && "Cannot create a read-only host view from a storage that is not valid on the device.");
         if(!m_valid_on_host) {
             // perform a memcpy
             m_valid_on_host = true; 
         }
     }
     void view_on_device() { 
+        assert(m_valid_on_host && "Cannot create a read-only device view from a storage that is not valid on the host.");
         if(!m_valid_on_device) {
             // perform a memcpy
             m_valid_on_device = true; 

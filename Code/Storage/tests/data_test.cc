@@ -13,10 +13,10 @@ TEST(DataViewTest, Basic) {
 
     // create a storage info type
     storage_info_t si(3,3,3);
-    // create two storage views
+    // create two storages
     data_t my_storage_1(si);
     data_t my_storage_2(si);
-    // copy the storage views (internal storages stay the same)
+    // copy the storages (internal storages stay the same)
     data_t my_storage_1_cpy = my_storage_1;
     data_t my_storage_2_cpy = my_storage_2;
 
