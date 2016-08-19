@@ -18,9 +18,10 @@ struct data {
 
     void clone_to_device() const { s->clone_to_device(); }
     void clone_from_device() const { s->clone_from_device(); }
-    void view_on_host() const { s->view_on_host(); }
-    void view_on_device() const { s->view_on_device(); }
     bool is_valid_on_host() const { return s->is_valid_on_host(); }
     bool is_valid_on_device() const { return s->is_valid_on_device(); }
+    void reactivate_device_write_views() const { s->reactivate_device_write_views(); }
+    void reactivate_host_write_views() const { s->reactivate_host_write_views(); }
+    void sync() const { s->sync(); }
 };
 

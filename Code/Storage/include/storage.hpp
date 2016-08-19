@@ -1,12 +1,15 @@
 #pragma once
 #include "storage_info.hpp"
 
+struct state_machine {
+    bool m_hnu, m_dnu, m_od;
+    state_machine() : m_hnu(false), m_dnu(false), m_od(false) {}
+};
+
 // storage allocated on the heap
 template <typename T>
 struct storage {
     constexpr storage(unsigned size) :
-        m_valid_on_host(true),
-        m_valid_on_device(false),
         m_cpu_ptr(new T[size]),
         m_gpu_ptr(new T[size]) //this should be implemented as cuda ptr, ...
     {}
@@ -17,43 +20,39 @@ struct storage {
     }
 
     void clone_to_device() { 
-        assert(m_valid_on_host && "Cannot clone a storage to the device that is in an invalid state.");
-        if(!m_valid_on_device) {
-            // perform a memcpy
-        }
-        m_valid_on_host = false;
-        m_valid_on_device = true; 
+        // do a memcpy
+        std::cout << "memcopy h->d performed...\n";
+        m_state_machine.m_od = true;
+        m_state_machine.m_hnu = false;
+        m_state_machine.m_dnu = false;        
     }
+
     void clone_from_device() {
-        assert(m_valid_on_device && "Cannot clone a storage from the device that is in an invalid state.");
-        if(!m_valid_on_host) {
-            // perform a memcpy
-        }
-        m_valid_on_host = true;
-        m_valid_on_device = false; 
-    }
-    void view_on_host() {
-        assert(m_valid_on_device && "Cannot create a read-only host view from a storage that is not valid on the device.");
-        if(!m_valid_on_host) {
-            // perform a memcpy
-            m_valid_on_host = true; 
-        }
-    }
-    void view_on_device() { 
-        assert(m_valid_on_host && "Cannot create a read-only device view from a storage that is not valid on the host.");
-        if(!m_valid_on_device) {
-            // perform a memcpy
-            m_valid_on_device = true; 
-        }
+        // do a memcpy
+        std::cout << "memcopy d->h performed...\n";
+        m_state_machine.m_od = false;
+        m_state_machine.m_hnu = false;
+        m_state_machine.m_dnu = false;
     }
     
-    bool is_valid_on_host() const { return m_valid_on_host; }
-    bool is_valid_on_device() const { return m_valid_on_device; }
+    void sync() {
+        if(!m_state_machine.m_hnu && !m_state_machine.m_dnu) return;
+        assert((m_state_machine.m_hnu ^ m_state_machine.m_dnu) && "invalid state detected.");
+        (m_state_machine.m_hnu) ? clone_from_device() : clone_to_device();
+    }
+
+    bool is_valid_on_host() const { return !m_state_machine.m_od; }
+    bool is_valid_on_device() const { return m_state_machine.m_od; }
+    bool device_needs_update() const { return m_state_machine.m_dnu; }
+    bool host_needs_update() const { return m_state_machine.m_hnu; }
+    void reactivate_device_write_views() { assert(!m_state_machine.m_dnu && "host views are in write mode"); m_state_machine.m_hnu = 1; m_state_machine.m_od = 1; }
+    void reactivate_host_write_views() { assert(!m_state_machine.m_hnu && "device views are in write mode"); m_state_machine.m_dnu = 1; m_state_machine.m_od = 0; }
+    state_machine const* get_state_machine_ptr() const { return &m_state_machine; }
 
     T* get_cpu_ptr() const { return m_cpu_ptr; }
     T* get_gpu_ptr() const { return m_gpu_ptr; }
 
-    bool m_valid_on_device, m_valid_on_host;
+    state_machine m_state_machine;
     T* m_cpu_ptr;
     T* m_gpu_ptr;
 
