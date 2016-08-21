@@ -74,17 +74,70 @@ TEST(DataFieldTest, GetSetFieldElement) {
 
     // try to overwrite the field 0 in dimension 1 (check for warning message)
     data<double, storage_info_t> some_other_data(si);
-    testing::internal::CaptureStdout();
-    field.set<1,0>(some_other_data);
-    std::string output = testing::internal::GetCapturedStdout();
-    EXPECT_NE(output.find("WARNING: Data field element that is on device gets overridden."), std::string::npos);
+    ASSERT_DEATH((field.set<1,0>(some_other_data)), "WARNING: Data field element gets overridden.");
 
     // clone from device and try the same
     field.clone_from_device();
-    testing::internal::CaptureStdout();
-    field.set<1,0>(field_elem);
-    output.clear();
-    output = testing::internal::GetCapturedStdout();
-    EXPECT_EQ(output.find("WARNING: Data field element that is on device gets overridden."), std::string::npos);
+    field.set<1,0>(some_other_data);
 }
+
+TEST(DataFieldTest, ViewValid) {
+    typedef storage_info_sol< layout_map<2,1,0> > storage_info_t;
+    // create a storage info type
+    constexpr storage_info_t si {3,3,3};
+    // create data field
+    data_field<double, storage_info_t, 2, 3, 4> field(si);
+
+    // create a host write and a read view to the field
+    auto  hrv = make_host_field_view<decltype(field), true>(field);
+    auto  hwv = make_host_field_view<decltype(field), false>(field);
+    
+    // get a write view to <1,0>
+    auto hwv10 = hwv.get<1,0>();
+    // get a write view to <1,1>
+    auto hwv11 = hwv.get<1,1>();
+    // get a read view to <1,2>
+    auto hrv12 = hrv.get<1,2>();
+    
+    // all views should be valid
+    EXPECT_TRUE(hwv10.valid());    
+    EXPECT_TRUE(hwv11.valid());    
+    EXPECT_TRUE(hrv12.valid());
+
+    // launch a kernel, this might call clone_to_device for some/all storages.
+    field.clone_to_device(1,0);
+    EXPECT_FALSE(hwv10.valid());    
+    EXPECT_TRUE(hwv11.valid());    
+    EXPECT_TRUE(hrv12.valid());
+    
+    field.clone_to_device(1,2);
+    EXPECT_FALSE(hwv10.valid());    
+    EXPECT_TRUE(hwv11.valid());    
+    EXPECT_TRUE(hrv12.valid()); // still valid because there exists no device write view to this storage
+    // create a device write view and make the read view invalid
+    auto dwv = make_device_field_view<decltype(field), false>(field);
+    auto drv = make_device_field_view<decltype(field), true>(field);
+    auto dwv12 = dwv.get<1,2>();
+    EXPECT_FALSE(hrv12.valid()); // invalid because there exists a device write view to this storage
+
+    // create a device write view to a non cloned storage (<1,1>)
+    auto dwv11 = dwv.get<1,1>();
+    EXPECT_FALSE(dwv11.valid()); // device view is invalid because the data is not at the device currently
+    auto drv12 = drv.get<1,2>();
+    EXPECT_TRUE(drv12.valid()); 
+
+    field.sync();
+    EXPECT_FALSE(hwv10.valid());    
+    EXPECT_FALSE(hwv11.valid());    
+    EXPECT_TRUE(hrv12.valid());
+    EXPECT_FALSE(dwv11.valid());
+    EXPECT_TRUE(drv12.valid());
+
+    field.get<1,1>().reactivate_host_write_views();
+    EXPECT_TRUE(hwv11.valid());    
+    field.get<1,0>().reactivate_host_write_views();
+    EXPECT_TRUE(hwv10.valid());
+}
+
+
 

@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+
 #include "storage_info.hpp"
 
 struct state_machine {
@@ -47,7 +49,7 @@ struct storage {
     bool host_needs_update() const { return m_state_machine.m_hnu; }
     void reactivate_device_write_views() { assert(!m_state_machine.m_dnu && "host views are in write mode"); m_state_machine.m_hnu = 1; m_state_machine.m_od = 1; }
     void reactivate_host_write_views() { assert(!m_state_machine.m_hnu && "device views are in write mode"); m_state_machine.m_dnu = 1; m_state_machine.m_od = 0; }
-    state_machine const* get_state_machine_ptr() const { return &m_state_machine; }
+    state_machine* get_state_machine_ptr() { return &m_state_machine; }
 
     T* get_cpu_ptr() const { return m_cpu_ptr; }
     T* get_gpu_ptr() const { return m_gpu_ptr; }

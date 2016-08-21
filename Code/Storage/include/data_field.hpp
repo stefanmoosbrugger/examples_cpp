@@ -113,40 +113,13 @@ struct data_field {
         });
     }
 
-    // make all storages in a data field valid on the host
-    void view_on_host() const {
+    void sync() const {
         execute_lambda_on_tuple(f, [](auto& tuple_elem) {
             for(unsigned i=0; i<tuple_elem.size(); ++i) {
-                tuple_elem[i].view_on_host();
+                tuple_elem[i].sync();
             }
-        });
+        });        
     }
-
-    // make all storages in a data field valid on the device
-    void view_on_device() const {
-        execute_lambda_on_tuple(f, [](auto& tuple_elem) {
-            for(unsigned i=0; i<tuple_elem.size(); ++i) {
-                tuple_elem[i].view_on_device();
-            }
-        });
-    }
-
-    // make specific storage in a data field valid on the host
-    void view_on_host(unsigned Dim, unsigned Snapshot) const {
-        unsigned cnt = Dim;
-        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
-            if(cnt-- == 0) tuple_elem[Snapshot].view_on_host();
-        });
-    }
-
-    // make specific storage in a data field valid on the device
-    void view_on_device(unsigned Dim, unsigned Snapshot) const {
-        unsigned cnt = Dim;
-        execute_lambda_on_tuple(f, [&](auto& tuple_elem) {
-            if(cnt-- == 0) tuple_elem[Snapshot].view_on_device();
-        });
-    }
-
 };
 
 
