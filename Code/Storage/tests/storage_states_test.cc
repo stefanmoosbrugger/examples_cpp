@@ -29,7 +29,7 @@ TEST(StorageState, Simple) {
     EXPECT_FALSE(s.is_valid_on_device());
 }
 
-TEST(StorageState, InvalidState) {
+TEST(StorageState, StatesTest) {
     typedef storage_info_sol< layout_map<2,1,0> > storage_info_t;
     typedef data<double, storage_info_t> data_t;
 
@@ -44,78 +44,46 @@ TEST(StorageState, InvalidState) {
         std::cout << "device_needs_update: " << s.s->get_state_machine_ptr()->m_dnu << "\n";
     }; 
 
-    auto valid = [](auto& bla) { std::cout << bla.valid() << std::endl; };
+    // create a host read and write view
     auto hwv = make_host_view<decltype(s), false>(s);
     auto hrv = make_host_view<decltype(s), true>(s);
-    valid(hwv);
-    valid(hrv);
+    std::cout << "hwv: " << valid(s, hwv) << std::endl;
+    std::cout << "hrv: " << valid(s, hrv) << std::endl;
     
     hwv(0,0,0) = 10;
     hwv(0,0,1) = 20;
-    {
-        s.sync();
-        auto dwv = make_device_view<decltype(s), false>(s);
-        auto drv = make_device_view<decltype(s), true>(s);
-        valid(dwv);
-        valid(drv);
-        valid(hwv);
-        valid(hrv);
-        s.sync();
-        valid(dwv);
-        valid(drv);
-        valid(hwv);
-        valid(hrv);
-        s.sync();
+
+    std::cout << "sync() (clone to device because we had a hwv)\n";
+    s.sync();
+    // create a device read and write view
+    auto dwv = make_device_view<decltype(s), false>(s);
+    auto drv = make_device_view<decltype(s), true>(s);
+    std::cout << "dwv: " << valid(s, dwv) << std::endl;
+    std::cout << "drv: " << valid(s, drv) << std::endl;
+    std::cout << "hwv: " << valid(s, hwv) << std::endl;
+    std::cout << "hrv: " << valid(s, hrv) << std::endl;
+    std::cout << "sync() (clone from device because we had a dwv)\n";
+    s.sync();
+    std::cout << "dwv: " << valid(s, dwv) << std::endl;
+    std::cout << "drv: " << valid(s, drv) << std::endl;
+    std::cout << "hwv: " << valid(s, hwv) << std::endl;
+    std::cout << "hrv: " << valid(s, hrv) << std::endl;
+    std::cout << "sync() (nothing, no dwv and hwv got activated)\n";
+    s.sync();
+    std::cout << "reactivate_device_write_views()\n";
     s.reactivate_device_write_views();
-        valid(dwv);
-        valid(drv);
-        valid(hwv);
-        valid(hrv);
-        s.sync();
+    std::cout << "dwv: " << valid(s, dwv) << std::endl;
+    std::cout << "drv: " << valid(s, drv) << std::endl;
+    std::cout << "hwv: " << valid(s, hwv) << std::endl;
+    std::cout << "hrv: " << valid(s, hrv) << std::endl;
+    std::cout << "sync() (clone from device because we had a (reactivated) dwv)\n";
+    s.sync();
+    std::cout << "reactivate_host_write_views()\n";
     s.reactivate_host_write_views();
-    }
+    std::cout << "dwv: " << valid(s, dwv) << std::endl;
+    std::cout << "drv: " << valid(s, drv) << std::endl;
+    std::cout << "hwv: " << valid(s, hwv) << std::endl;
+    std::cout << "hrv: " << valid(s, hrv) << std::endl;
+    std::cout << "sync() (clone from device because we had a (reactivated) hwv)\n";
+    s.sync();
 }
-
-/*
-TEST(StorageState, Views) {
-    typedef storage_info_sol< layout_map<2,1,0> > storage_info_t;
-    typedef data<double, storage_info_t> data_t;
-
-    // create a storage info type
-    storage_info_t si(3,3,3);
-    // create a storage
-    data_t s(si);
-
-    // check initial state
-    EXPECT_TRUE(s.is_valid_on_host());
-    EXPECT_FALSE(s.is_valid_on_device());
-    
-    // get a device view
-    s.view_on_device();
-    EXPECT_TRUE(s.is_valid_on_host());
-    EXPECT_TRUE(s.is_valid_on_device());
-    // again device view, no changes should happen
-    s.view_on_device();
-    EXPECT_TRUE(s.is_valid_on_host());
-    EXPECT_TRUE(s.is_valid_on_device());
-
-    // do a clone to device
-    s.clone_to_device();
-    EXPECT_FALSE(s.is_valid_on_host());
-    EXPECT_TRUE(s.is_valid_on_device());
-
-    // get a host view
-    s.view_on_host();
-    EXPECT_TRUE(s.is_valid_on_host());
-    EXPECT_TRUE(s.is_valid_on_device());
-    // again host view, no changes should happen
-    s.view_on_host();
-    EXPECT_TRUE(s.is_valid_on_host());
-    EXPECT_TRUE(s.is_valid_on_device());
-
-    // do a clone from device
-    s.clone_from_device();
-    EXPECT_TRUE(s.is_valid_on_host());
-    EXPECT_FALSE(s.is_valid_on_device());    
-}
-*/

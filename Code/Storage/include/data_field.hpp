@@ -72,9 +72,7 @@ struct data_field {
 
     template <unsigned Dim, unsigned Snapshot>
     void set(data<T, MetaData>& dh) {
-        assert((std::get<Dim>(f)[Snapshot].is_valid_on_host() && 
-               !std::get<Dim>(f)[Snapshot].is_valid_on_device()) && 
-               "WARNING: Data field element gets overridden.\n");
+        assert(std::get<Dim>(f)[Snapshot].is_valid_on_host() && "WARNING: Data field element gets overridden.\n");
         std::get<Dim>(f)[Snapshot] = dh;
         update_required = true;
     }
